@@ -22,6 +22,7 @@
 
 package br.gov.achei.achei.controllers;
 
+import br.gov.achei.achei.models.Case;
 import br.gov.achei.achei.models.Citizen;
 import br.gov.achei.achei.models.GenericObject;
 import br.gov.achei.achei.services.CitizenService;
@@ -83,4 +84,12 @@ public class CitizenController {
                 .map(citizen -> ResponseEntity.ok(citizen.getObjects()))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
+
+    @GetMapping("/{id}/cases")
+    public ResponseEntity<List<Case>> getCitizenCases(@PathVariable Long id) {
+        return citizenService.getCitizenById(id)
+                .map(citizen -> ResponseEntity.ok(citizen.getCases()))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+    
 }

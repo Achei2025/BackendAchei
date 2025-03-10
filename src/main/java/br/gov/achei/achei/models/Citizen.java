@@ -77,6 +77,10 @@ public class Citizen {
     @JsonManagedReference
     private List<GenericObject> objects;
 
+    @OneToMany(mappedBy = "citizen", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private List<Case> cases;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -1,3 +1,25 @@
+/*
+ * Achei: Stolen Object Tracking System.
+ * Copyright (C) 2025  Team Achei
+ * 
+ * This file is part of Achei.
+ * 
+ * Achei is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * Achei is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Achei.  If not, see <https://www.gnu.org/licenses/>.
+ * 
+ * Contact information: teamachei.2024@gmail.com
+*/
+
 package br.gov.achei.achei.services;
 
 import br.gov.achei.achei.models.Citizen;
@@ -58,33 +80,36 @@ public class GenericObjectService {
                 throw new IllegalArgumentException("Object does not belong to the citizen.");
             }
 
-            // Criar um mapa para atualizar propriedades existentes
-            Map<Long, ObjectProperty> existingPropertiesMap = existingObject.getProperties().stream()
-                .collect(Collectors.toMap(ObjectProperty::getId, property -> property));
+        // Criar um mapa para rastrear as propriedades existentes
+        Map<Long, ObjectProperty> existingPropertiesMap = existingObject.getProperties().stream()
+            .collect(Collectors.toMap(ObjectProperty::getId, property -> property));
 
-            // Atualizar ou adicionar propriedades
-            List<ObjectProperty> updatedProperties = new ArrayList<>();
-            for (ObjectProperty updatedProperty : updatedObject.getProperties()) {
-                if (updatedProperty.getId() != null) {
-                    // Atualiza propriedades existentes
-                    ObjectProperty existingProperty = existingPropertiesMap.get(updatedProperty.getId());
-                    if (existingProperty != null) {
-                        existingProperty.setKey(updatedProperty.getKey());
-                        existingProperty.setValue(updatedProperty.getValue());
-                        updatedProperties.add(existingProperty);
-                    }
-                } else {
-                    // Adiciona novas propriedades
-                    updatedProperty.setObject(existingObject);
-                    updatedProperties.add(updatedProperty);
+        // Atualizar ou adicionar propriedades
+        List<ObjectProperty> updatedProperties = new ArrayList<>();
+        for (ObjectProperty updatedProperty : updatedObject.getProperties()) {
+            if (updatedProperty.getId() != null) {
+                // Atualiza propriedades existentes
+                ObjectProperty existingProperty = existingPropertiesMap.get(updatedProperty.getId());
+                if (existingProperty != null) {
+                    existingProperty.setKey(updatedProperty.getKey());
+                    existingProperty.setValue(updatedProperty.getValue());
+                    updatedProperties.add(existingProperty);
                 }
+            } else {
+                // Adiciona novas propriedades
+                updatedProperty.setObject(existingObject);
+                updatedProperties.add(updatedProperty);
             }
+        }
 
-            // Define as propriedades atualizadas no objeto
-            existingObject.setProperties(updatedProperties);
+        // Limpa a lista antiga para evitar inconsistências
+        existingObject.getProperties().clear();
 
-            // Atualiza outros atributos do objeto, exceto os imutáveis e propriedades
-            BeanUtils.copyProperties(updatedObject, existingObject, "id", "createdAt", "citizen", "properties");
+        // Adiciona as propriedades atualizadas à entidade
+        existingObject.getProperties().addAll(updatedProperties);
+
+        // Atualiza os demais atributos da entidade
+        BeanUtils.copyProperties(updatedObject, existingObject, "id", "createdAt", "citizen", "properties");
 
             // Salva e retorna o objeto atualizado
             return genericObjectRepository.save(existingObject);

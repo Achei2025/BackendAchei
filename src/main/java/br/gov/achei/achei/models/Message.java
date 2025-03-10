@@ -22,31 +22,41 @@
 
 package br.gov.achei.achei.models;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "object_properties")
-public class ObjectProperty {
+@Table(name = "messages")
+public class Message {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "`key`", nullable = false)
-    private String key; // Nome da propriedade específica: IMEI, Número do Chassi, etc.
+    @Column(name = "content", nullable = false, length = 1000)
+    private String content;
 
-    @Column(name = "value", nullable = false)
-    private String value; // Valor da propriedade: Exemplo de valor para IMEI ou Chassi
+    @Column(name = "sender", nullable = false)
+    private String sender;
+
+    @Column(name = "sent_at", nullable = false)
+    private LocalDateTime sentAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "object_id", nullable = false)
+    @JoinColumn(name = "case_id", nullable = false)
     @JsonBackReference
-    private GenericObject object; // Referência ao objeto principal
+    private Case caseReference;
+
+    @PrePersist
+    public void onPrePersist() {
+        this.sentAt = LocalDateTime.now();
+    }
 }
