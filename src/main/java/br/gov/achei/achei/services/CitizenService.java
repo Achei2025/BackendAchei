@@ -77,7 +77,7 @@ public class CitizenService {
 
     public Citizen updateCitizen(Long id, Citizen citizen) {
         return citizenRepository.findById(id).map(existingCitizen -> {
-            BeanUtils.copyProperties(citizen, existingCitizen, "id", "createdAt", "updatedAt", "password", "address", "objects");
+            BeanUtils.copyProperties(citizen, existingCitizen, "id", "createdAt", "updatedAt", "password", "address", "objects", "cases");
 
             if (citizen.getPassword() != null && !citizen.getPassword().isEmpty()) {
                 existingCitizen.setPassword(citizen.getPassword());

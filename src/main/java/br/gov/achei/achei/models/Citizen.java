@@ -66,6 +66,9 @@ public class Citizen {
     @Column(name = "gender", nullable = false, length = 256)
     private String gender;
 
+    @Column(name = "occupation", nullable = false, length = 256)
+    private String occupation;
+
     @Column(name = "image", length = 256)
     private String image;
 
@@ -98,6 +101,7 @@ public class Citizen {
         this.image = EncryptionUtil.encrypt(this.image);
         this.gender = EncryptionUtil.encrypt(this.gender);
         this.birthDate = EncryptionUtil.encrypt(this.birthDate);
+        this.occupation = EncryptionUtil.encrypt(this.occupation);
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -112,6 +116,7 @@ public class Citizen {
         this.image = EncryptionUtil.encrypt(this.image);
         this.gender = EncryptionUtil.encrypt(this.gender);
         this.birthDate = EncryptionUtil.encrypt(this.birthDate);
+        this.occupation = EncryptionUtil.encrypt(this.occupation);
         if (!EncryptionUtil.checkPassword(this.password, this.password)) {
             this.password = EncryptionUtil.hashPassword(this.password);
         }
@@ -129,9 +134,9 @@ public class Citizen {
             if (EncryptionUtil.isEncrypted(this.image)) this.image = EncryptionUtil.decrypt(this.image);
             if (EncryptionUtil.isEncrypted(this.gender)) this.gender = EncryptionUtil.decrypt(this.gender);
             if (EncryptionUtil.isEncrypted(this.birthDate)) this.birthDate = EncryptionUtil.decrypt(this.birthDate);
+            if (EncryptionUtil.isEncrypted(this.occupation)) this.occupation = EncryptionUtil.decrypt(this.occupation);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 }
-

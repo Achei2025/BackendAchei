@@ -99,7 +99,6 @@ public class CaseService {
             existingCase.setCrimeType(updatedCase.getCrimeType());
             existingCase.setLocation(updatedCase.getLocation());
             existingCase.setDescription(updatedCase.getDescription());
-            existingCase.setPriority(updatedCase.getPriority());
     
             if (policeId != null) {
                 Police police = policeRepository.findById(policeId)

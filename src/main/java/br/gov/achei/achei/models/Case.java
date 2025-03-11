@@ -58,9 +58,6 @@ public class Case {
     @Column(name = "description", length = 500)
     private String description;
 
-    @Column(name = "priority", nullable = false, length = 20)
-    private String priority;
-
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
@@ -80,6 +77,10 @@ public class Case {
     @OneToMany(mappedBy = "caseReference", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Message> messages;
+
+    @OneToMany(mappedBy = "caseReference", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private List<Comment> comments;
 
     @PrePersist
     public void onPrePersist() {
