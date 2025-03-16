@@ -24,7 +24,7 @@ package br.gov.achei.achei.controllers;
 
 import br.gov.achei.achei.models.Message;
 import br.gov.achei.achei.services.MessageService;
-
+import br.gov.achei.achei.utils.JwtUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,30 +37,44 @@ import java.util.NoSuchElementException;
 public class MessageController {
 
     private final MessageService messageService;
+    private final JwtUtil jwtUtil;
 
-    public MessageController(MessageService messageService) {
+    public MessageController(MessageService messageService, JwtUtil jwtUtil) {
         this.messageService = messageService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/{caseId}")
-    public ResponseEntity<Message> sendMessage(
+    public ResponseEntity<?> sendMessage(
             @PathVariable Long caseId,
-            @RequestBody Message messageData) {
+            @RequestHeader("Authorization") String token,
+            @RequestBody Message messageData,
+            @RequestParam(required = false) String policeRegistration) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+
         try {
-            Message message = messageService.sendMessage(caseId, messageData.getContent(), messageData.getSender());
+            Message message = messageService.sendMessage(caseId, messageData.getContent(), username, policeRegistration);
             return ResponseEntity.status(HttpStatus.CREATED).body(message);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied to send messages in this case.");
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Case not found.");
         }
     }
 
     @GetMapping("/{caseId}")
-    public ResponseEntity<List<Message>> getMessages(@PathVariable Long caseId) {
+    public ResponseEntity<?> getMessages(
+            @PathVariable Long caseId,
+            @RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+
         try {
-            List<Message> messages = messageService.getMessagesByCase(caseId);
+            List<Message> messages = messageService.getMessagesByCaseForUser(caseId, username);
             return ResponseEntity.ok(messages);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied to view messages in this case.");
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Case not found.");
         }
     }
 }

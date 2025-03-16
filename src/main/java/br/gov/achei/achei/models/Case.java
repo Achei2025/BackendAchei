@@ -22,9 +22,12 @@
 
 package br.gov.achei.achei.models;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
+import br.gov.achei.achei.utils.EncryptionUtil;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -36,6 +39,7 @@ import java.util.List;
 @NoArgsConstructor
 @Entity
 @Table(name = "cases")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Case {
 
     @Id
@@ -63,7 +67,7 @@ public class Case {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "citizen_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnoreProperties({"cpf", "fullName", "rg", "email", "phone", "birthDate", "gender", "occupation", "image", "address", "objects", "cases", "user", "createdAt", "updatedAt"})
     private Citizen citizen;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -75,11 +79,12 @@ public class Case {
     private GenericObject object;
 
     @OneToMany(mappedBy = "caseReference", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonManagedReference(value = "case-messages")
+    @JsonIgnore
     private List<Message> messages;
 
     @OneToMany(mappedBy = "caseReference", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonManagedReference(value = "case-comments")
     private List<Comment> comments;
 
     @PrePersist
@@ -94,5 +99,18 @@ public class Case {
         } else {
             this.closedAt = null;
         }
+    }
+
+    @JsonIgnore
+    public boolean canViewMessages(String username, String policeRegistration) {
+        return this.getCitizen().getUser().getUsername().equals(EncryptionUtil.encrypt(username)) || 
+            (this.getPolice() != null && this.getPolice().getRegistration().equals(EncryptionUtil.encrypt(policeRegistration)));
+    }
+
+    public List<Message> getFilteredMessages(String username, String policeRegistration) {
+        if (this.canViewMessages(username, policeRegistration)) {
+            return this.messages;
+        }
+        return null;
     }
 }

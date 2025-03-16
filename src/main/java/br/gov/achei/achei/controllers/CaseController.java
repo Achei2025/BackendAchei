@@ -23,7 +23,10 @@
 package br.gov.achei.achei.controllers;
 
 import br.gov.achei.achei.models.Case;
+import br.gov.achei.achei.models.Citizen;
 import br.gov.achei.achei.services.CaseService;
+import br.gov.achei.achei.services.CitizenService;
+import br.gov.achei.achei.utils.JwtUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,64 +39,90 @@ import java.util.NoSuchElementException;
 public class CaseController {
 
     private final CaseService caseService;
+    private final CitizenService citizenService;
+    private final JwtUtil jwtUtil;
 
-    public CaseController(CaseService caseService) {
+    public CaseController(CaseService caseService, CitizenService citizenService, JwtUtil jwtUtil) {
         this.caseService = caseService;
+        this.citizenService = citizenService;
+        this.jwtUtil = jwtUtil;
     }
 
     @GetMapping
-    public List<Case> getAllCases() {
-        return caseService.getAllCases();
+    public ResponseEntity<List<Case>> getAllCases() {
+        try {
+            List<Case> cases = caseService.getAllCases();
+            return ResponseEntity.ok(cases);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Case> getCaseById(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(caseService.getCaseById(id));
+            Case publicCase = caseService.getCaseById(id);
+            return ResponseEntity.ok(publicCase);
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
-    @PostMapping
+    @PostMapping("/me")
     public ResponseEntity<Case> createCase(
+            @RequestHeader("Authorization") String token,
             @RequestBody Case caseData,
-            @RequestParam Long citizenId,
             @RequestParam Long objectId) {
         try {
-            Case createdCase = caseService.createCase(caseData, citizenId, objectId);
+            String username = jwtUtil.extractUsername(token.substring(7));
+            Citizen citizen = citizenService.getCitizenByUsername(username)
+                    .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
+            Case createdCase = caseService.createCase(caseData, citizen.getId(), objectId);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdCase);
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
-    }
-
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Case> updateCase(
-            @PathVariable Long id,
-            @RequestBody Case updatedCase,
-            @RequestParam(required = false) Long policeId,
-            @RequestParam(required = false) Long objectId) {
-        try {
-            Case updated = caseService.updateCase(id, updatedCase, policeId, objectId);
-            return ResponseEntity.ok(updated);
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCase(@PathVariable Long id) {
+
+    @PutMapping("/{id}/me")
+    public ResponseEntity<Case> updateCase(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token,
+            @RequestBody Case updatedCase,
+            @RequestParam(required = false) Long policeId,
+            @RequestParam(required = false) Long objectId) {
         try {
-            caseService.deleteCase(id);
+            String username = jwtUtil.extractUsername(token.substring(7));
+            Citizen citizen = citizenService.getCitizenByUsername(username)
+                    .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
+            Case updated = caseService.updateCase(id, citizen.getId(), updatedCase, policeId, objectId);
+            return ResponseEntity.ok(updated);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    @DeleteMapping("/{id}/me")
+    public ResponseEntity<Void> deleteCase(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+        try {
+            String username = jwtUtil.extractUsername(token.substring(7));
+            Citizen citizen = citizenService.getCitizenByUsername(username)
+                    .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
+            caseService.deleteCase(id, citizen.getId());
             return ResponseEntity.noContent().build();
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
 }

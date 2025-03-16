@@ -23,6 +23,9 @@
 package br.gov.achei.achei.models;
 
 import br.gov.achei.achei.utils.EncryptionUtil;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -35,6 +38,7 @@ import java.util.List;
 @NoArgsConstructor
 @Entity
 @Table(name = "citizens")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Citizen {
 
     @Id
@@ -47,6 +51,9 @@ public class Citizen {
 
     @Column(name = "full_name", nullable = false, length = 256)
     private String fullName;
+    
+    @Column(name = "anonymous_name", nullable = false, unique = true, length = 256)
+    private String anonymousName;
 
     @Column(name = "rg", nullable = false, unique = true, length = 256)
     private String rg;
@@ -56,9 +63,6 @@ public class Citizen {
 
     @Column(name = "phone", nullable = false, length = 256)
     private String phone;
-
-    @Column(name = "password", nullable = false, length = 256)
-    private String password;
 
     @Column(name = "birth_date", nullable = false, length = 256)
     private String birthDate;
@@ -77,12 +81,21 @@ public class Citizen {
     private Address address;
 
     @OneToMany(mappedBy = "citizen", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonIgnore
     private List<GenericObject> objects;
 
     @OneToMany(mappedBy = "citizen", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonIgnore
     private List<Case> cases;
+
+    @OneToMany(mappedBy = "citizen", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<Comment> comments;
+
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonManagedReference
+    private User user;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -94,14 +107,16 @@ public class Citizen {
     public void encryptDataBeforePersist() {
         this.cpf = EncryptionUtil.encrypt(this.cpf);
         this.fullName = EncryptionUtil.encrypt(this.fullName);
+        this.anonymousName = EncryptionUtil.encrypt(this.anonymousName);
         this.rg = EncryptionUtil.encrypt(this.rg);
         this.email = EncryptionUtil.encrypt(this.email);
         this.phone = EncryptionUtil.encrypt(this.phone);
-        this.password = EncryptionUtil.hashPassword(this.password);
-        this.image = EncryptionUtil.encrypt(this.image);
         this.gender = EncryptionUtil.encrypt(this.gender);
         this.birthDate = EncryptionUtil.encrypt(this.birthDate);
         this.occupation = EncryptionUtil.encrypt(this.occupation);
+        if (this.image != null) {
+            this.image = EncryptionUtil.encrypt(this.image);
+        }
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -110,15 +125,15 @@ public class Citizen {
     public void encryptDataBeforeUpdate() {
         this.cpf = EncryptionUtil.encrypt(this.cpf);
         this.fullName = EncryptionUtil.encrypt(this.fullName);
+        this.anonymousName = EncryptionUtil.encrypt(this.anonymousName);
         this.rg = EncryptionUtil.encrypt(this.rg);
         this.email = EncryptionUtil.encrypt(this.email);
         this.phone = EncryptionUtil.encrypt(this.phone);
-        this.image = EncryptionUtil.encrypt(this.image);
         this.gender = EncryptionUtil.encrypt(this.gender);
         this.birthDate = EncryptionUtil.encrypt(this.birthDate);
         this.occupation = EncryptionUtil.encrypt(this.occupation);
-        if (!EncryptionUtil.checkPassword(this.password, this.password)) {
-            this.password = EncryptionUtil.hashPassword(this.password);
+        if (this.image != null) {
+            this.image = EncryptionUtil.encrypt(this.image);
         }
         this.updatedAt = LocalDateTime.now();
     }
@@ -128,13 +143,16 @@ public class Citizen {
         try {
             if (EncryptionUtil.isEncrypted(this.cpf)) this.cpf = EncryptionUtil.decrypt(this.cpf);
             if (EncryptionUtil.isEncrypted(this.fullName)) this.fullName = EncryptionUtil.decrypt(this.fullName);
+            if (EncryptionUtil.isEncrypted(this.anonymousName)) this.anonymousName = EncryptionUtil.decrypt(this.anonymousName);
             if (EncryptionUtil.isEncrypted(this.rg)) this.rg = EncryptionUtil.decrypt(this.rg);
             if (EncryptionUtil.isEncrypted(this.email)) this.email = EncryptionUtil.decrypt(this.email);
             if (EncryptionUtil.isEncrypted(this.phone)) this.phone = EncryptionUtil.decrypt(this.phone);
-            if (EncryptionUtil.isEncrypted(this.image)) this.image = EncryptionUtil.decrypt(this.image);
             if (EncryptionUtil.isEncrypted(this.gender)) this.gender = EncryptionUtil.decrypt(this.gender);
             if (EncryptionUtil.isEncrypted(this.birthDate)) this.birthDate = EncryptionUtil.decrypt(this.birthDate);
             if (EncryptionUtil.isEncrypted(this.occupation)) this.occupation = EncryptionUtil.decrypt(this.occupation);
+            if (this.image != null && EncryptionUtil.isEncrypted(this.image)) {
+                this.image = EncryptionUtil.decrypt(this.image);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

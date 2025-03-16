@@ -23,24 +23,28 @@
 package br.gov.achei.achei.utils;
 
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 
 public class EncryptionUtil {
 
     private static final String ALGORITHM = "AES";
-    private static final SecretKey SECRET_KEY = generateKey();
-    private static final Argon2PasswordEncoder ARGON2_ENCODER = new Argon2PasswordEncoder(16, 32, 1, 1 << 13, 3);
+    private static final SecretKey SECRET_KEY = loadKeyFromEnvironment();
 
-    private static SecretKey generateKey() {
+    private static SecretKey loadKeyFromEnvironment() {
         try {
-            KeyGenerator keyGen = KeyGenerator.getInstance(ALGORITHM);
-            keyGen.init(256);
-            return keyGen.generateKey();
+            String keyString = System.getenv("ENCRYPTION_SECRET_KEY");
+            if (keyString == null || keyString.isEmpty()) {
+                throw new IllegalStateException("The 'ENCRYPTION_SECRET_KEY' environment variable is not set or is empty.");
+            }
+            byte[] decodedKey = Base64.getDecoder().decode(keyString);
+            return new SecretKeySpec(decodedKey, ALGORITHM);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to load the encryption key from the environment.", e);
         }
     }
 
@@ -51,7 +55,7 @@ public class EncryptionUtil {
             byte[] encryptedData = cipher.doFinal(data.getBytes());
             return Base64.getEncoder().encodeToString(encryptedData);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("An error occurred during the encryption process.", e);
         }
     }
 
@@ -63,16 +67,18 @@ public class EncryptionUtil {
             byte[] decryptedData = cipher.doFinal(decodedBytes);
             return new String(decryptedData);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("An error occurred during the decryption process.", e);
         }
     }
 
     public static String hashPassword(String password) {
-        return ARGON2_ENCODER.encode(password);
+        PasswordEncoder passwordEncoder = new Argon2PasswordEncoder(16, 32, 1, 1 << 13, 3);
+        return passwordEncoder.encode(password);
     }
 
     public static boolean checkPassword(String rawPassword, String hashedPassword) {
-        return ARGON2_ENCODER.matches(rawPassword, hashedPassword);
+        PasswordEncoder passwordEncoder = new Argon2PasswordEncoder(16, 32, 1, 1 << 13, 3);
+        return passwordEncoder.matches(rawPassword, hashedPassword);
     }
 
     public static boolean isEncrypted(String data) {

@@ -22,11 +22,11 @@
 
 package br.gov.achei.achei.services;
 
-import br.gov.achei.achei.models.Message;
 import br.gov.achei.achei.models.Case;
-import br.gov.achei.achei.repositories.MessageRepository;
+import br.gov.achei.achei.models.Message;
 import br.gov.achei.achei.repositories.CaseRepository;
-
+import br.gov.achei.achei.repositories.MessageRepository;
+import br.gov.achei.achei.utils.EncryptionUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -43,22 +43,42 @@ public class MessageService {
         this.caseRepository = caseRepository;
     }
 
-    public Message sendMessage(Long caseId, String content, String sender) {
+    public Message sendMessage(Long caseId, String content, String sender, String policeRegistration) {
         Case caseReference = caseRepository.findById(caseId)
                 .orElseThrow(() -> new NoSuchElementException("Case not found"));
 
-        Message message = new Message();
-        message.setContent(content);
-        message.setSender(sender);
-        message.setCaseReference(caseReference);
-
-        return messageRepository.save(message);
+        boolean isCitizen = sender != null &&
+                caseReference.getCitizen().getUser().getUsername().equals(EncryptionUtil.encrypt(sender));
+    
+        boolean isPolice = policeRegistration != null &&
+                caseReference.getPolice() != null &&
+                caseReference.getPolice().getRegistration().equals(EncryptionUtil.encrypt(policeRegistration));
+    
+        if (isCitizen && !isPolice) {
+            Message message = new Message();
+            message.setContent(content);
+            message.setSender(EncryptionUtil.decrypt(caseReference.getCitizen().getFullName()));
+            message.setCaseReference(caseReference);
+            return messageRepository.save(message);
+        } else if (isCitizen && isPolice) {
+            Message message = new Message();
+            message.setContent(content);
+            message.setSender(EncryptionUtil.decrypt(caseReference.getPolice().getName()));
+            message.setCaseReference(caseReference);
+            return messageRepository.save(message);
+        } else {
+            throw new SecurityException("You do not have permission to send messages in this case.");
+        }
     }
-
-    public List<Message> getMessagesByCase(Long caseId) {
+    
+    public List<Message> getMessagesByCaseForUser(Long caseId, String username) {
         Case caseReference = caseRepository.findById(caseId)
                 .orElseThrow(() -> new NoSuchElementException("Case not found"));
-
+    
+        if (!caseReference.getCitizen().getUser().getUsername().equals(EncryptionUtil.encrypt(username))) {
+            throw new SecurityException("You do not have permission to view these messages.");
+        }
+    
         return messageRepository.findByCaseReferenceOrderBySentAtAsc(caseReference);
     }
 }

@@ -20,36 +20,23 @@
  * Contact information: teamachei.2024@gmail.com
 */
 
-package br.gov.achei.achei.models;
+package br.gov.achei.achei.utils;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import java.security.SecureRandom;
 
-import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+public class AnonymousNameGenerator {
 
-@Data
-@NoArgsConstructor
-@Entity
-@Table(name = "object_properties")
-public class ObjectProperty {
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*!?";
+    private static final SecureRandom RANDOM = new SecureRandom();
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+    public static String generateAnonymousName() {
+        String prefix = "Anônimo ";
+        StringBuilder randomPart = new StringBuilder();
 
-    @Column(name = "`key`", nullable = false)
-    private String key;
+        for (int i = 0; i < 5; i++) {
+            randomPart.append(CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length())));
+        }
 
-    @Column(name = "value", nullable = false)
-    private String value;
-
-    @Column(name = "block", nullable = false)
-    private boolean block = false;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "object_id", nullable = false)
-    @JsonBackReference
-    private GenericObject object;
+        return prefix + randomPart.toString();
+    }
 }

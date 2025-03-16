@@ -25,71 +25,101 @@ package br.gov.achei.achei.controllers;
 import br.gov.achei.achei.models.Case;
 import br.gov.achei.achei.models.Citizen;
 import br.gov.achei.achei.models.GenericObject;
+import br.gov.achei.achei.models.Police;
 import br.gov.achei.achei.services.CitizenService;
+import br.gov.achei.achei.utils.EncryptionUtil;
+import br.gov.achei.achei.utils.JwtUtil;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/citizens")
 public class CitizenController {
 
     private final CitizenService citizenService;
+    private final JwtUtil jwtUtil;
 
-    public CitizenController(CitizenService citizenService) {
+    public CitizenController(CitizenService citizenService, JwtUtil jwtUtil) {
         this.citizenService = citizenService;
+        this.jwtUtil = jwtUtil;
     }
 
-    @GetMapping
-    public List<Citizen> getAllCitizens() {
-        return citizenService.getAllCitizens();
-    }
+    @GetMapping("/me")
+    public ResponseEntity<Citizen> getAuthenticatedCitizen(@RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token.substring(7));
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Citizen> getCitizenById(@PathVariable Long id) {
-        Optional<Citizen> citizen = citizenService.getCitizenById(id);
-        return citizen.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
+        citizen.decryptDataAfterLoad();
+
+        return ResponseEntity.ok(citizen);
     }
 
     @PostMapping
     public ResponseEntity<Citizen> createCitizen(@RequestBody Citizen citizen) {
-        Citizen savedCitizen = citizenService.createCitizen(citizen);
+        if (citizen.getUser() == null || citizen.getUser().getPassword() == null || citizen.getUser().getPassword().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+
+        String rawPassword = citizen.getUser().getPassword();
+
+        Citizen savedCitizen = citizenService.createCitizen(citizen, rawPassword);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedCitizen);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Citizen> updateCitizen(@PathVariable Long id, @RequestBody Citizen citizen) {
-        try {
-            Citizen updatedCitizen = citizenService.updateCitizen(id, citizen);
-            return ResponseEntity.ok(updatedCitizen);
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    @PutMapping("/me")
+    public ResponseEntity<Citizen> updateAuthenticatedCitizen(@RequestHeader("Authorization") String token, @RequestBody Citizen citizen) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen existingCitizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
+        Citizen updatedCitizen = citizenService.updateCitizen(existingCitizen.getId(), citizen);
+        return ResponseEntity.ok(updatedCitizen);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCitizen(@PathVariable Long id) {
-        citizenService.deleteCitizen(id);
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteAuthenticatedCitizen(@RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
+        citizenService.deleteCitizen(citizen.getId());
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{id}/objects")
-    public ResponseEntity<List<GenericObject>> getCitizenObjects(@PathVariable Long id) {
-        return citizenService.getCitizenById(id)
-                .map(citizen -> ResponseEntity.ok(citizen.getObjects()))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    @GetMapping("/me/objects")
+    public ResponseEntity<List<GenericObject>> getAuthenticatedCitizenObjects(@RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+        return ResponseEntity.ok(citizen.getObjects());
     }
 
-    @GetMapping("/{id}/cases")
-    public ResponseEntity<List<Case>> getCitizenCases(@PathVariable Long id) {
-        return citizenService.getCitizenById(id)
-                .map(citizen -> ResponseEntity.ok(citizen.getCases()))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    @GetMapping("/me/cases")
+    public ResponseEntity<List<Case>> getAuthenticatedCitizenCases(@RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+        
+        if (EncryptionUtil.isEncrypted(citizen.getAnonymousName())) {
+            citizen.decryptDataAfterLoad();
+        }
+
+        citizen.getCases().forEach(caseItem -> {
+            if (caseItem.getPolice() != null) {
+                Police filteredPolice = new Police();
+                filteredPolice.setId(caseItem.getPolice().getId());
+                filteredPolice.setName(EncryptionUtil.decrypt(caseItem.getPolice().getName()));
+                caseItem.setPolice(filteredPolice);
+            }
+        });
+
+        return ResponseEntity.ok(citizen.getCases());
     }
-    
 }

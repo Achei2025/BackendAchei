@@ -24,6 +24,7 @@ package br.gov.achei.achei.controllers;
 
 import br.gov.achei.achei.models.Comment;
 import br.gov.achei.achei.services.CommentService;
+import br.gov.achei.achei.utils.JwtUtil;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,20 +38,26 @@ import java.util.NoSuchElementException;
 public class CommentController {
 
     private final CommentService commentService;
+    private final JwtUtil jwtUtil;
 
-    public CommentController(CommentService commentService) {
+    public CommentController(CommentService commentService, JwtUtil jwtUtil) {
         this.commentService = commentService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping
-    public ResponseEntity<Comment> addComment(
+    public ResponseEntity<?> addComment(
             @PathVariable Long caseId,
-            @RequestBody Comment commentData) {
+            @RequestBody Comment commentData,
+            @RequestHeader("Authorization") String token) {
         try {
-            Comment comment = commentService.addComment(caseId, commentData.getContent(), commentData.getAuthor());
+            String citizenUsername = jwtUtil.extractUsername(token.substring(7));
+            Comment comment = commentService.addComment(caseId, commentData.getContent(), citizenUsername);
             return ResponseEntity.status(HttpStatus.CREATED).body(comment);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("The specified case or citizen was not found.");
         }
     }
 
@@ -60,7 +67,7 @@ public class CommentController {
             List<Comment> comments = commentService.getCommentsByCase(caseId);
             return ResponseEntity.ok(comments);
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
     }
 }

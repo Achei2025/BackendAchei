@@ -26,13 +26,13 @@ import br.gov.achei.achei.models.Address;
 import br.gov.achei.achei.models.Citizen;
 import br.gov.achei.achei.repositories.AddressRepository;
 import br.gov.achei.achei.repositories.CitizenRepository;
+import br.gov.achei.achei.utils.EncryptionUtil;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 @Service
 public class AddressService {
@@ -45,35 +45,20 @@ public class AddressService {
         this.citizenRepository = citizenRepository;
     }
 
-    public List<Address> getAllAddresses() {
-        return addressRepository.findAll();
+    public Optional<Address> getAddressByCitizenUsername(String username) {
+        return citizenRepository.findByUserUsername(EncryptionUtil.encrypt(username))
+                .map(Citizen::getAddress);
     }
 
-    public Optional<Address> getAddressById(Long id) {
-        return addressRepository.findById(id);
-    }
-
-    public Address createAddress(Address address) {
-        return addressRepository.save(address);
-    }
-
-    public Address updateAddress(Long id, Address address) {
-        return addressRepository.findById(id).map(existingAddress -> {
-            // Manter a referência ao cidadão
-            if (address.getCitizen() != null) {
-                Optional<Citizen> citizen = citizenRepository.findById(address.getCitizen().getId());
-                citizen.ifPresent(address::setCitizen);
-            } else {
-                address.setCitizen(existingAddress.getCitizen());
+    public Address updateAddressByCitizenUsername(String username, Address newAddress) {
+        return citizenRepository.findByUserUsername(EncryptionUtil.encrypt(username)).map(citizen -> {
+            Address currentAddress = citizen.getAddress();
+            if (currentAddress == null) {
+                throw new NoSuchElementException("Address not found for the citizen");
             }
-
-            BeanUtils.copyProperties(address, existingAddress, "id", "createdAt", "updatedAt", "citizen");
-            existingAddress.setUpdatedAt(LocalDateTime.now());
-            return addressRepository.save(existingAddress);
-        }).orElseThrow(NoSuchElementException::new);
-    }
-    
-    public void deleteAddress(Long id) {
-        addressRepository.deleteById(id);
+            BeanUtils.copyProperties(newAddress, currentAddress, "id", "createdAt", "citizen");
+            currentAddress.setUpdatedAt(newAddress.getUpdatedAt());
+            return addressRepository.save(currentAddress);
+        }).orElseThrow(() -> new NoSuchElementException("Citizen not found"));
     }
 }

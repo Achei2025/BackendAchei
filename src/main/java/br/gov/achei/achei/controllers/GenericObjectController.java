@@ -22,8 +22,12 @@
 
 package br.gov.achei.achei.controllers;
 
+import br.gov.achei.achei.models.Citizen;
 import br.gov.achei.achei.models.GenericObject;
+import br.gov.achei.achei.services.CitizenService;
 import br.gov.achei.achei.services.GenericObjectService;
+import br.gov.achei.achei.utils.JwtUtil;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,70 +40,74 @@ import java.util.NoSuchElementException;
 public class GenericObjectController {
 
     private final GenericObjectService genericObjectService;
+    private final CitizenService citizenService;
+    private final JwtUtil jwtUtil;
 
-    public GenericObjectController(GenericObjectService genericObjectService) {
+    public GenericObjectController(GenericObjectService genericObjectService, CitizenService citizenService, JwtUtil jwtUtil) {
         this.genericObjectService = genericObjectService;
+        this.citizenService = citizenService;
+        this.jwtUtil = jwtUtil;
     }
 
-    @GetMapping
-    public List<GenericObject> getAllObjects() {
-        // Retorna todos os objetos
-        return genericObjectService.getAllObjects();
+    @GetMapping("/me")
+    public ResponseEntity<List<GenericObject>> getAuthenticatedCitizenObjects(@RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+        return ResponseEntity.ok(genericObjectService.getObjectsByCitizenId(citizen.getId()));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<GenericObject> getObjectById(@PathVariable Long id) {
-        // Retorna um objeto específico pelo ID
+    @GetMapping("/me/{id}")
+    public ResponseEntity<GenericObject> getAuthenticatedCitizenObject(@RequestHeader("Authorization") String token, @PathVariable Long id) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
         return genericObjectService.getObjectById(id)
+                .filter(object -> object.getCitizen().getId().equals(citizen.getId()))
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.FORBIDDEN).build());
     }
 
-    @PostMapping
-    public ResponseEntity<GenericObject> createObject(@RequestBody GenericObject genericObject, @RequestParam Long citizenId) {
-        try {
-            // Cria um novo objeto associado ao cidadão
-            GenericObject createdObject = genericObjectService.createObject(genericObject, citizenId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdObject);
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    @PostMapping("/me")
+    public ResponseEntity<GenericObject> createObject(@RequestHeader("Authorization") String token, @RequestBody GenericObject genericObject) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
+        GenericObject createdObject = genericObjectService.createObject(genericObject, citizen.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdObject);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<GenericObject> updateObject(@PathVariable Long id, @RequestParam Long citizenId, @RequestBody GenericObject genericObject) {
+    @PutMapping("/me/{id}")
+    public ResponseEntity<GenericObject> updateObject(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long id,
+            @RequestBody GenericObject genericObject) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
         try {
-            // Atualiza um objeto existente, garantindo que pertence ao cidadão
-            GenericObject updatedObject = genericObjectService.updateObject(id, citizenId, genericObject);
+            GenericObject updatedObject = genericObjectService.updateObject(id, citizen.getId(), genericObject);
             return ResponseEntity.ok(updatedObject);
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteObject(@PathVariable Long id, @RequestParam Long citizenId) {
+    @DeleteMapping("/me/{id}")
+    public ResponseEntity<Void> deleteObject(@RequestHeader("Authorization") String token, @PathVariable Long id) {
+        String username = jwtUtil.extractUsername(token.substring(7));
+        Citizen citizen = citizenService.getCitizenByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Citizen not found"));
+
         try {
-            // Exclui um objeto associado ao cidadão
-            genericObjectService.deleteObject(id, citizenId);
+            genericObjectService.deleteObject(id, citizen.getId());
             return ResponseEntity.noContent().build();
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-    }
-
-    @GetMapping("/citizen/{citizenId}")
-    public ResponseEntity<List<GenericObject>> getObjectsByCitizenId(@PathVariable Long citizenId) {
-        try {
-            // Retorna os objetos associados a um cidadão específico
-            List<GenericObject> objects = genericObjectService.getObjectsByCitizenId(citizenId);
-            return ResponseEntity.ok(objects);
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 }
+

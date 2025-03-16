@@ -29,12 +29,16 @@ import java.util.Optional;
 
 @Repository
 public interface CitizenRepository extends JpaRepository<Citizen, Long> {
-    
+
     Optional<Citizen> findByCpf(String cpf);
 
     Optional<Citizen> findByEmail(String email);
 
     Optional<Citizen> findByRg(String rg);
+
+    Optional<Citizen> findByUserUsername(String username);
+
+    Optional<Citizen> findByAnonymousName(String anonymousName);
 
     boolean existsByCpf(String cpf);
 

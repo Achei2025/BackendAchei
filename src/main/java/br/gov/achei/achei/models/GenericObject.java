@@ -24,6 +24,7 @@ package br.gov.achei.achei.models;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.*;
@@ -38,6 +39,7 @@ import java.util.List;
 @Entity
 @Table(name = "generic_objects")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class GenericObject {
 
     @Id
@@ -46,58 +48,58 @@ public class GenericObject {
     private Long id;
 
     @Column(name = "name", nullable = false)
-    private String name; // Nome genérico do objeto
+    private String name;
 
     @Column(name = "category", nullable = false)
-    private String category; // Categoria do objeto: Eletrônicos, Veículos, Outros
+    private String category;
 
     @Column(name = "description", length = 500)
-    private String description; // Descrição geral do objeto
+    private String description;
 
     @Column(name = "serial_number", length = 100)
-    private String serialNumber; // Número de série do objeto
+    private String serialNumber;
 
     @Column(name = "identification_code", length = 100)
-    private String identificationCode; // Código único de identificação do objeto
+    private String identificationCode;
 
     @Column(name = "brand")
-    private String brand; // Marca do objeto
+    private String brand;
 
     @Column(name = "model")
-    private String model; // Modelo do objeto
+    private String model;
 
     @Column(name = "acquisition_date")
-    private LocalDateTime acquisitionDate; // Data de aquisição do objeto
+    private LocalDateTime acquisitionDate;
 
     @Column(name = "invoice", length = 255)
-    private String invoice; // Caminho para a nota fiscal armazenada
+    private String invoice;
 
     @Column(name = "qr_code", length = 255)
-    private String qrCode; // Caminho para o QR Code gerado
+    private String qrCode;
 
     @Column(name = "chip_identifier", length = 100)
-    private String chipIdentifier; // Identificador de chip simples
+    private String chipIdentifier;
 
     @Column(name = "image")
-    private String image; // URL ou caminho para a imagem do objeto
+    private String image;
 
     @Column(name = "status", length = 50)
-    private String status; // Status do objeto: Seguro, Furtado, etc.
+    private String status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "citizen_id", nullable = false)
     @JsonBackReference
-    private Citizen citizen; // Cidadão associado ao objeto
+    private Citizen citizen;
 
     @OneToMany(mappedBy = "object", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
-    private List<ObjectProperty> properties; // Propriedades dinâmicas específicas do objeto
+    private List<ObjectProperty> properties;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt; // Timestamp de criação do objeto
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt; // Timestamp de última atualização do objeto
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {

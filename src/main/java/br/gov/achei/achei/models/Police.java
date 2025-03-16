@@ -25,6 +25,7 @@ package br.gov.achei.achei.models;
 import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import br.gov.achei.achei.utils.EncryptionUtil;
 import jakarta.persistence.Column;
@@ -44,6 +45,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "police")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Police {
 
     @Id
